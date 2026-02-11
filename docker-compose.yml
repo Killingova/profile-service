@@ -1,0 +1,90 @@
+name: profile-service-stack
+
+x-healthcheck: &healthcheck
+  test:
+    - CMD
+    - node
+    - -e
+    - >
+      const port = process.env.PORT || 4000;
+      fetch('http://127.0.0.1:' + port + '/health/live')
+        .then((r) => process.exit(r.ok ? 0 : 1))
+        .catch(() => process.exit(1));
+  interval: 10s
+  timeout: 3s
+  retries: 10
+  start_period: 5s
+
+services:
+  profile-service:
+    user: "node"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: profile-service:local
+    init: true
+    restart: unless-stopped
+    expose:
+      - "4000"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4000
+      LOG_LEVEL: info
+
+      AUTHZ_MODE: gateway_headers
+      REQUEST_ID_HEADER: x-request-id
+      TENANT_HEADER: x-tenant-id
+      USER_HEADER: x-user-id
+
+      DB_HOST: auth-db
+      DB_PORT: 5432
+      DB_NAME: authdb
+      DB_USER: auth_runtime
+      DB_SCHEMA: profile
+      DB_ROLE: app_profile
+      DB_PASSWORD_FILE: /run/secrets/auth_runtime_password
+
+      SERVICE_JWT_PUBLIC_OR_HS_SECRET_FILE: /run/secrets/service_jwt_secret
+      JWT_ISSUER: auth-service
+      JWT_AUDIENCE: auth-client
+      JWT_CLOCK_SKEW_SEC: 60
+
+      OPENAPI_ENABLED: "true"
+      METRICS_ENABLED: "true"
+      STARTUP_VALIDATE_ENV: "1"
+
+    secrets:
+      - auth_runtime_password
+      - service_jwt_secret
+
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 200
+
+    healthcheck: *healthcheck
+
+    networks:
+      paradox_net:
+        aliases:
+          - profile-service
+      paradox_backplane: {}
+
+secrets:
+  auth_runtime_password:
+    file: /home/devops/secrets/auth_runtime_password.txt
+  service_jwt_secret:
+    file: /home/devops/secrets/jwt_secret.txt
+
+networks:
+  paradox_net:
+    external: true
+    name: paradox_net
+  paradox_backplane:
+    external: true
+    name: paradox_backplane

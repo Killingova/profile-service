@@ -1,0 +1,32 @@
+{
+  "name": "profile-service",
+  "version": "1.0.0",
+  "description": "Profile service (Fastify + PostgreSQL, multi-tenant, RLS-safe)",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test": "npm run test:unit",
+    "test:unit": "node --import tsx --test src/tests/http/*.test.ts",
+    "test:e2e": "node --import tsx --test src/tests/http/*.test.ts",
+    "db:migrate": "tsx src/scripts/migrate.ts",
+    "db:reset": "tsx src/scripts/db-reset.ts",
+    "db:seed": "tsx src/scripts/seed.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.6.1",
+    "fastify-plugin": "^5.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.16.3",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.9.0",
+    "@types/pg": "^8.15.6",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
