@@ -2,6 +2,12 @@
 
 Production-oriented profile service for SaaS/microservices with strict tenant isolation.
 
+## Current Status (2026-02-12 14:37:47 CET)
+
+- Container `profile-service-stack-profile-service-1` is `healthy`.
+- Gateway check `https://127.0.0.1:8443/health/profile` returns `200`.
+- DB readiness in response is `{\"db\":\"ok\"}`.
+
 ## Security Contract
 
 - `X-Tenant-Id` is required on business routes and must be a UUID.
