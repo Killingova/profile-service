@@ -1,22 +1,29 @@
 # Profile Service
 
-Production-oriented profile service for SaaS/microservices with strict tenant isolation.
+Produktionsnaher Profile-Service fuer SaaS/Microservices mit strikter Tenant-Isolation.
 
-## Current Status (2026-02-12 14:37:47 CET)
+## Zweck / Boundary
+- Verwaltet Profil- und Praeferenzdaten fuer authentifizierte Nutzer pro Tenant.
+- Erzwingt Tenant-Kontext auf API- und DB-Ebene (RLS + GUC).
+- Kein direkter Public-Zugriff auf DB, kein Vertrauen auf ungepruefte Header.
 
-- Container `profile-service-stack-profile-service-1` is `healthy`.
-- Gateway check `https://127.0.0.1:8443/health/profile` returns `200`.
-- DB readiness in response is `{\"db\":\"ok\"}`.
+## Aktueller Stand (2026-02-12 15:32:39 CET)
+- Container `profile-service-stack-profile-service-1` laeuft `healthy`.
+- Gateway-Check `https://127.0.0.1:8443/health/profile` liefert `200`.
+- DB-Readiness im Response-Check:
+
+```json
+{"db":"ok"}
+```
 
 ## Security Contract
-
-- `X-Tenant-Id` is required on business routes and must be a UUID.
-- `X-Request-Id` is accepted or generated and always returned.
-- AuthZ is explicit via `AUTHZ_MODE`:
-  - `gateway_headers` (default): requires `X-User-Id`, blocks `Authorization`.
-  - `service_jwt`: requires `Authorization: Bearer`, blocks `X-User-Id`.
-- Mixed auth context is rejected with `400 AUTH_CONTEXT_INVALID`.
-- Error envelope is stable:
+- `X-Tenant-Id` ist auf Business-Routen Pflicht und muss UUID sein.
+- `X-Request-Id` wird akzeptiert oder erzeugt und immer zurueckgegeben.
+- AuthZ ist explizit via `AUTHZ_MODE`:
+  - `gateway_headers` (Default): erwartet `X-User-Id`, blockiert `Authorization`.
+  - `service_jwt`: erwartet `Authorization: Bearer`, blockiert `X-User-Id`.
+- Gemischter Auth-Kontext wird mit `400 AUTH_CONTEXT_INVALID` abgewiesen.
+- Stabiler Error-Envelope:
 
 ```json
 {
@@ -26,9 +33,8 @@ Production-oriented profile service for SaaS/microservices with strict tenant is
 }
 ```
 
-## RLS and Pooling Contract
-
-All tenant-bound database operations run inside a transaction and set context locally:
+## RLS-/Pooling-Vertrag
+Alle tenant-gebundenen DB-Operationen laufen transaktional mit lokalem Kontext:
 
 ```sql
 BEGIN;
@@ -39,10 +45,34 @@ SELECT set_config('app.user_id', '<user_uuid>', true);
 COMMIT;
 ```
 
-RLS policies use `meta.require_tenant()` and tables run with `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY`.
+RLS-Policies verwenden `meta.require_tenant()`, Tabellen laufen mit `ENABLE ROW LEVEL SECURITY` und `FORCE ROW LEVEL SECURITY`.
 
-## API (minimum)
+## Ops
+```bash
+# Checks und Tests
+make check
+make e2e
 
+# DB-Routinen (DEV)
+make db-reset
+make migrate
+
+# Voller Goldlauf
+make gold
+```
+
+## DoD Checks
+```bash
+curl -ks https://127.0.0.1:8443/health/profile
+curl -ks https://127.0.0.1:8443/healthz
+```
+
+Erwartung:
+- Gateway/Service-Health `200`.
+- Kein direkter DB-Zugriff vom Edge.
+- Tenant- und Auth-Kontrakt sind aktiv.
+
+## API (Minimum)
 - `GET /profiles/me`
 - `PATCH /profiles/me`
 - `DELETE /profiles/me`
@@ -51,25 +81,19 @@ RLS policies use `meta.require_tenant()` and tables run with `ENABLE ROW LEVEL S
 - `GET /health/live`
 - `GET /health/ready`
 - `GET /health/db`
-- `GET /openapi.json` (if enabled)
-- `GET /metrics` (if enabled)
+- `GET /openapi.json` (falls aktiv)
+- `GET /metrics` (falls aktiv)
 
 ## SQL Layout
-
-- `sql/init/*`: baseline schema, RLS, grants.
-- `sql/migrations/*`: forward migrations.
-
-## Make Targets
-
-- `make check`: typecheck + unit tests + secret scan.
-- `make db-reset`: drop profile schema (dev-only) and run init SQL.
-- `make migrate`: run init + migration SQL.
-- `make e2e`: run test suite.
-- `make gold`: check + compose up + wait + migrate + e2e.
+- `sql/init/*`: Basisschema, RLS, Grants.
+- `sql/migrations/*`: Forward-Migrations.
 
 ## DSAR / Retention
+- `DELETE /profiles/me` fuehrt Soft-Delete/Anonymisierung aus (`deleted_at`, Profilfelder bereinigt).
+- Audit bleibt append-only in `profile.profile_events`.
+- Integrationsereignis `profile.deleted` wird in `profile.outbox_events` geschrieben.
 
-- `DELETE /profiles/me` performs soft delete/anonymization (`deleted_at`, profile fields scrubbed).
-- Audit data stays append-only in `profile.profile_events`.
-- Integration event `profile.deleted` is written to `profile.outbox_events`.
-- Retention windows must be defined by policy (for example: events 90d, audit 365d).
+## Guardrails
+- Kein gemischter Auth-Kontext (`Authorization` + `X-User-Id`).
+- Kein Tenant-Fallback ohne validen Tenant-Header.
+- Keine Secrets im Repo.

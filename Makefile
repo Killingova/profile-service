@@ -1,11 +1,30 @@
 SHELL := /bin/bash
 COMPOSE ?= docker compose
 SERVICE ?= profile-service
+EDGE_NETWORK ?= paradox_net
+BACKPLANE_NETWORK ?= paradox_backplane
 
 .PHONY: up down ps logs wait typecheck build test test-unit e2e \
-	db-reset migrate seed secret-scan check gold
+	db-reset migrate seed secret-scan check gold network-ensure
 
-up:
+network-ensure:
+	@if ! docker network inspect $(EDGE_NETWORK) >/dev/null 2>&1; then \
+		echo "[INFO] creating docker network $(EDGE_NETWORK)"; \
+		docker network create $(EDGE_NETWORK); \
+	fi
+	@if ! docker network inspect $(BACKPLANE_NETWORK) >/dev/null 2>&1; then \
+		echo "[INFO] creating docker network $(BACKPLANE_NETWORK) as internal"; \
+		docker network create --internal $(BACKPLANE_NETWORK); \
+	fi
+	@internal="$$(docker network inspect $(BACKPLANE_NETWORK) --format '{{.Internal}}')"; \
+	if [ "$$internal" != "true" ]; then \
+		echo "[ERROR] network $(BACKPLANE_NETWORK) exists but is not internal=true" >&2; \
+		echo "        recreate manually: docker network rm $(BACKPLANE_NETWORK) && docker network create --internal $(BACKPLANE_NETWORK)" >&2; \
+		exit 1; \
+	fi
+	@echo "[OK] network $(EDGE_NETWORK) present; $(BACKPLANE_NETWORK)=internal"
+
+up: network-ensure
 	$(COMPOSE) up -d --build
 
 down:
