@@ -55,6 +55,19 @@ const openApiPlugin: FastifyPluginAsync = async (app) => {
             get: { summary: "Get current profile preferences" },
             put: { summary: "Replace current profile preferences" },
           },
+          "/readings": {
+            get: { summary: "List current user's readings" },
+            post: { summary: "Create a new reading" },
+          },
+          "/readings/{readingId}": {
+            get: { summary: "Get a reading with cards" },
+          },
+          "/readings/{readingId}/cards": {
+            post: { summary: "Add a card to a reading" },
+          },
+          "/readings/cards/{cardId}/answer": {
+            put: { summary: "Create or update the current user's answer for a card" },
+          },
           "/health/live": { get: { summary: "Liveness" } },
           "/health/ready": { get: { summary: "Readiness" } },
           "/health/db": { get: { summary: "Database health" } },

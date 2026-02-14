@@ -78,6 +78,11 @@ Erwartung:
 - `DELETE /profiles/me`
 - `GET /profiles/me/preferences`
 - `PUT /profiles/me/preferences`
+- `GET /readings`
+- `POST /readings`
+- `GET /readings/:readingId`
+- `POST /readings/:readingId/cards`
+- `PUT /readings/cards/:cardId/answer`
 - `GET /health/live`
 - `GET /health/ready`
 - `GET /health/db`

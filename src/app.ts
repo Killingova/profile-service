@@ -9,6 +9,7 @@ import requestContextPlugin from "./plugins/request-context";
 import tenantGuardPlugin from "./plugins/tenant-guard";
 import healthRoutes from "./modules/health/routes";
 import profileRoutes from "./modules/profile/routes";
+import readingsRoutes from "./modules/readings/routes";
 
 export type BuildAppOptions = {
   authzMode?: AuthzMode;
@@ -81,6 +82,7 @@ export function buildApp(options: BuildAppOptions = {}): FastifyInstance {
 
   app.register(healthRoutes);
   app.register(profileRoutes);
+  app.register(readingsRoutes);
 
   app.addHook("preHandler", async (request) => {
     const routeConfig = request.routeOptions.config ?? {};
